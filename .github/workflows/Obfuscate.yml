@@ -18,6 +18,23 @@ jobs:
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 修正点1：完整克隆仓库，避免浅克隆潜在文件缺失问题
+          submodules: false  # 若无子模块，显式关闭，提升拉取速度
+
+      # 新增核心步骤：验证关键文件存在性，缺失则直接失败并给出清晰提示
+      - name: Verify core files exist (critical)
+        run: |
+          if [ ! -f "package.json" ]; then
+            echo "❌ ERROR: package.json not found in repository root directory!"
+            echo "Please check: 1. package.json is committed; 2. It's in root directory; 3. Not ignored by .gitignore"
+            exit 1
+          fi
+          if [ ! -f "RELEASE.md" ]; then
+            echo "❌ ERROR: RELEASE.md not found in repository root directory!"
+            exit 1
+          fi
+          echo "✅ All core files exist"
 
       - name: Get release version
         id: get_version
@@ -30,9 +47,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "latest"
+          cache: 'npm'  # 优化点：开启npm缓存，提升依赖安装速度
 
       - name: Install dependencies
-        run: npm install --production
+        run: npm install --omit=dev  # 修正点2：替换废弃的--production为--omit=dev（npm7+规范）
 
       - name: Type check
         run: npm run check
